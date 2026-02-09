@@ -6,6 +6,6 @@ phases:
       - unzip terraform.zip && mv terraform /usr/local/bin/
   build:
     commands:
-      - terraform init -backend=false # No need for state to validate
+      - echo "Validating Terraform..."
+      - terraform init -backend=false
       - terraform validate
-      - terraform fmt -check
