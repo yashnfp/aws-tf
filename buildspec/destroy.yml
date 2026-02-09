@@ -1,0 +1,14 @@
+version: 0.2
+phases:
+  install:
+    commands:
+      - echo "Installing Terraform..."
+      - curl -s -qL -o terraform.zip
+        https://releases.hashicorp.com/terraform/1.5.0/terraform_1.5.0_linux_amd64.zip
+      - unzip terraform.zip && mv terraform /usr/local/bin/
+  build:
+    commands:
+      - echo "Initializing Terraform..."
+      - terraform init
+      - echo "DESTRUCTION STARTING..."
+      - terraform destroy -auto-approve
