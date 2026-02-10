@@ -1,66 +1,55 @@
-# ---------------------------------------------------------------------------------------------------------------------
-# TERRAFORM SETTINGS & PROVIDER
-# ---------------------------------------------------------------------------------------------------------------------
-terraform {
-  required_providers {
-    aws = {
-      source  = "hashicorp/aws"
-      version = "~> 5.0"
-    }
-  }
-}
-
-provider "aws" {
-  region = "us-east-1" # <--- Ensure this matches your pipeline region
-}
-
-# ---------------------------------------------------------------------------------------------------------------------
-# VARIABLES
-# ---------------------------------------------------------------------------------------------------------------------
-variable "instance_type" {
-  description = "The EC2 instance type"
-  type        = string
-  default     = "t2.micro" # <--- Force t2.micro for Free Tier
-}
-
-# ---------------------------------------------------------------------------------------------------------------------
-# DATA SOURCES
-# ---------------------------------------------------------------------------------------------------------------------
-
-# 1. Find the Default VPC that already exists in your account
-data "aws_vpc" "default" {
-  default = true
-}
-
-# 2. Find the latest Amazon Linux 2 AMI (x86_64 for t2.micro)
-data "aws_ami" "latest_amazon_linux" {
+# 1. Look up the latest Amazon Linux 2 AMI
+data "aws_ami" "amazon_linux" {
   most_recent = true
   owners      = ["amazon"]
-
   filter {
     name   = "name"
     values = ["amzn2-ami-hvm-*-x86_64-gp2"]
   }
+}
 
-  filter {
-    name   = "virtualization-type"
-    values = ["hvm"]
+# 2. Look up your Default VPC
+data "aws_vpc" "default" {
+  default = true
+}
+
+# 3. Create a Security Group (The Firewall for your EC2)
+resource "aws_security_group" "ec2_sg" {
+  name        = "${var.project_name}-sg"
+  description = "Allow SSH and HTTP"
+  vpc_id      = data.aws_vpc.default.id
+
+  ingress {
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  ingress {
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
   }
 }
 
-# ---------------------------------------------------------------------------------------------------------------------
-# RESOURCES
-# ---------------------------------------------------------------------------------------------------------------------
-
-# 3. Launch the EC2
-resource "aws_instance" "my_server" {
-  ami           = data.aws_ami.latest_amazon_linux.id
+# 4. Launch the EC2 Instance
+resource "aws_instance" "app_server" {
+  ami           = data.aws_ami.amazon_linux.id
   instance_type = var.instance_type
   
-  # Optional: Security Group to allow SSH (Best practice)
-  # vpc_security_group_ids = [aws_security_group.allow_ssh.id]
+  # Attach the Security Group
+  vpc_security_group_ids = [aws_security_group.ec2_sg.id]
 
   tags = {
-    Name = "Step-1-EC2"
+    Name = "${var.project_name}-ec2"
   }
 }
